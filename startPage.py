@@ -7,6 +7,7 @@ def terminate():
     pygame.quit()
     sys.exit()
 
+
 def start_screen(screen, clock):
     intro_text = ["Лабиринт"]
     font = pygame.font.Font(None, 30)

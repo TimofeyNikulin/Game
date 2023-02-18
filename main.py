@@ -22,12 +22,12 @@ if __name__ == '__main__':
             if event.type == pygame.QUIT:
                 running = False
         screen.fill((0, 0, 0))
-        map.world() 
+        map.world()
         map.ray_casting(player.pos, player.angle)
         field.draw(screen, screen_map, player.pos, player.angle)
         clock.tick(FPS)
         print(clock.get_fps())
-        
+
         pygame.display.update()
 
 pygame.quit()
