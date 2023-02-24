@@ -5,9 +5,9 @@ firstLevel = [
     'W  WW         WWWWWW',
     'W     WWW          W',
     'W     WWW          W',
-    'W                  W',
-    'WWWWW  WW          W',
-    'W                  W',
+    'W           WWWWW  W',
+    'WWWWW  WW   WWWWW  W',
+    'W           W      W',
     'WWWWWWWWWWWWWWWWWWWW'
 ]
 

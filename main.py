@@ -11,6 +11,7 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((WIDTH + 200, HEIGHT))
     clock = pygame.time.Clock()
     # start_screen(screen, clock)
+    texture = pygame.image.load('img/1.png').convert()
     screen_map = pygame.Surface((WIDTH // MAP_SCALE, HEIGHT // MAP_SCALE))
     running = True
     player = Player()
@@ -23,8 +24,8 @@ if __name__ == '__main__':
                 running = False
         screen.fill((0, 0, 0))
         map.world()
-        map.ray_casting(player.pos, player.angle)
-        field.draw(screen, screen_map, player.pos, player.angle)
+        map.ray_casting(player.pos, player.angle, texture)
+        # field.draw(screen, screen_map, player.pos, player.angle)
         clock.tick(FPS)
         print(clock.get_fps())
 

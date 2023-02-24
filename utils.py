@@ -63,9 +63,9 @@ class Player:
             self.x += -self.player_speed * cos_a
             self.y += -self.player_speed * sin_a
         if keys[pygame.K_LEFT]:
-            self.angle -= 0.02
+            self.angle -= 0.03
         if keys[pygame.K_RIGHT]:
-            self.angle += 0.02
+            self.angle += 0.03
         self.updatePos()
         # print(self.x, self.y)
 
@@ -82,7 +82,7 @@ class Map:
     def coordOfSquare(self, x, y):
         return (x // TILE) * TILE, (y // TILE) * TILE
 
-    def ray_casting(self, player_pos, player_angle):
+    def ray_casting(self, player_pos, player_angle, texture):
         start_angle = player_angle - HALF_FOV
         player_x, player_y = player_pos
         square_x, square_y = self.coordOfSquare(player_x, player_y)
@@ -93,26 +93,31 @@ class Map:
             x, dx = (square_x + TILE, 1) if cos_a >= 0 else (square_x, -1)
             for i in range(0, WIDTH, TILE):
                 depth_v = (x - player_x) / cos_a
-                y = player_y + depth_v * sin_a
-                if self.coordOfSquare(x + dx, y) in self.world_map:
+                yv = player_y + depth_v * sin_a
+                if self.coordOfSquare(x + dx, yv) in self.world_map:
                     break
                 x += dx * TILE
 
             y, dy = (square_y + TILE, 1) if sin_a >= 0 else (square_y, -1)
             for i in range(0, HEIGHT, TILE):
                 depth_h = (y - player_y) / sin_a
-                x = player_x + depth_h * cos_a
-                if self.coordOfSquare(x, y + dy) in self.world_map:
+                xh = player_x + depth_h * cos_a
+                if self.coordOfSquare(xh, y + dy) in self.world_map:
                     break
                 y += dy * TILE
 
-            depth = depth_v if depth_v < depth_h else depth_h
+            depth, offset = (
+                depth_v, yv) if depth_v < depth_h else (depth_h, xh)
+            offset = int(offset) % TILE
             depth *= math.cos(player_angle - start_angle)
-            proj_height = PROJ_COEFF / depth
-            c = 255 / (1 + depth * depth * 0.0001)
-            color = (c, c, c)
-            pygame.draw.rect(self.screen, color, (ray * SCALE, HEIGHT //
-                             2 - proj_height // 2, SCALE + 1, proj_height))
+            depth = max(depth, 0.00001)
+            proj_height = min(int(PROJ_COEFF / depth), 2 * HEIGHT)
+            wall_column = texture.subsurface(
+                offset * TEXTURE_SCALE, 0, TEXTURE_SCALE, TEXTURE_HEIGHT)
+            wall_column = pygame.transform.scale(
+                wall_column, (SCALE, proj_height))
+            self.screen.blit(
+                wall_column, (ray * SCALE, HEIGHT // 2 - proj_height // 2))
             start_angle += STEP_ANGLE
 
     def world(self):

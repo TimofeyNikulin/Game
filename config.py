@@ -2,14 +2,19 @@ import math
 
 
 # setting of game
-HEIGHT = 480
-WIDTH = HEIGHT * 2
+HEIGHT = 800
+WIDTH = 1200
 MAP_SIZE = 8
 TILE = int(WIDTH / 10 / 2)
 FPS = 80
 
 # player
-SPEED = 2
+SPEED = 3
+
+# texture
+TEXTURE_WIDTH = 1200
+TEXTURE_HEIGHT = 1200
+TEXTURE_SCALE = TEXTURE_WIDTH // TILE
 
 # ray casting
 MAX_DEPTH = 800
