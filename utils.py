@@ -4,6 +4,55 @@ import pygame
 import math
 
 
+class Sprites:
+    def __init__(self):
+        self.sprite_types = {
+            'key': pygame.image.load('img/sprites/1.png').convert()
+        }
+        self.list_of_objects = [
+            SpriteObject(self.sprite_types['key'],
+                         True, (12.5, 8.5), 1.8, 0.4),
+            SpriteObject(self.sprite_types['key'], True, (1.5, 8.5), 1.8, 0.4),
+            SpriteObject(self.sprite_types['key'], True, (2.5, 1.5), 1.8, 0.4),
+            SpriteObject(self.sprite_types['key'], True, (7.5, 6.5), 1.8, 0.4)
+        ]
+
+
+class SpriteObject:
+    def __init__(self, object, static, pos, shift, scale):
+        self.object = object
+        self.static = static
+        self.pos = self.x, self.y = pos[0] * TILE, pos[1] * TILE
+        self.shift = shift
+        self.scale = scale
+
+    def object_locate(self, player, walls):
+        dx, dy = self.x - player.x, self.y - player.y
+        distance_to_sprite = math.sqrt(dx**2 + dy**2)
+
+        theta = math.atan2(dy, dx)
+        gamma = theta - player.angle
+        if dx > 0 and 180 <= math.degrees(player.angle) <= 360 or dx < 0 and dy < 0:
+            gamma += DOUBLE_PI
+
+        delta_rays = int(gamma / STEP_ANGLE)
+        current_ray = CENTER_RAY + delta_rays
+        distance_to_sprite *= math.cos(HALF_FOV - current_ray * STEP_ANGLE)
+
+        if 0 <= current_ray <= CASTED_RAYS - 1 and distance_to_sprite < walls[current_ray][0]:
+            proj_height = int(PROJ_COEFF / distance_to_sprite * self.scale)
+            half_proj_height = proj_height // 2
+            shift = half_proj_height * self.shift
+
+            sprite_pos = (current_ray * SCALE - half_proj_height,
+                          HEIGHT // 2 - half_proj_height + shift)
+            sprite = pygame.transform.scale(
+                self.object, (proj_height, proj_height))
+            return (distance_to_sprite, sprite, sprite_pos)
+        else:
+            return (False, )
+
+
 class Field:
     def __init__(self):
         self.cell_size = TILE
@@ -12,7 +61,7 @@ class Field:
         self.world_map = set()
         for j, row in enumerate(LEVELS[0]):
             for i, char in enumerate(row):
-                if char == '1' or char == '2':
+                if char == '1' or char == '2' or char == 'D':
                     self.world_map.add((i * MAP_TILE, j * MAP_TILE))
 
     def nextLevel(self):
@@ -30,13 +79,6 @@ class Field:
                            (int(player_x), int(player_y)), 2)
         screen.blit(screen_map, MAP_POS)
 
-        # pygame.draw.line(screen, (0, 255, 0), (player_x, player_y), (player_x -
-        #                  math.sin(player_angle) * 50, player_y + math.cos(player_angle) * 50), 3)
-        # pygame.draw.line(screen, (0, 255, 0), (player_x, player_y), (player_x - math.sin(
-        #     player_angle - HALF_FOV) * 50, player_y + math.cos(player_angle - HALF_FOV) * 50), 3)
-        # pygame.draw.line(screen, (0, 255, 0), (player_x, player_y), (player_x - math.sin(
-        #     player_angle + HALF_FOV) * 50, player_y + math.cos(player_angle + HALF_FOV) * 50), 3)
-
 
 class Player:
     def __init__(self, x=WIDTH / 2, y=HEIGHT / 2):
@@ -46,7 +88,7 @@ class Player:
         self.angle = 0
         self.player_speed = SPEED
         self.collision_walls = []
-        self.side = 50
+        self.side = 20
         self.rect = pygame.Rect(*self.pos, self.side, self.side)
         for j, row in enumerate(LEVELS[0]):
             for i, char in enumerate(row):
@@ -109,6 +151,7 @@ class Player:
         self.rect.center = self.x, self.y
         self.updatePos()
         # print(self.x, self.y)
+        self.angle %= DOUBLE_PI
 
 
 class Map:
@@ -121,14 +164,16 @@ class Map:
                     self.world_map[(i * TILE, j * TILE)] = '1'
                 elif char == '2':
                     self.world_map[(i * TILE, j * TILE)] = '2'
-        print(self.world_map)
+                elif char == 'D':
+                    self.world_map[(i * TILE, j * TILE)] = 'door'
 
     def coordOfSquare(self, x, y):
         return (x // TILE) * TILE, (y // TILE) * TILE
 
-    def ray_casting(self, player_pos, player_angle, textures):
-        start_angle = player_angle - HALF_FOV
-        player_x, player_y = player_pos
+    def ray_casting(self, player, textures, fourKeys):
+        walls = []
+        start_angle = player.angle - HALF_FOV
+        player_x, player_y = player.pos
         square_x, square_y = self.coordOfSquare(player_x, player_y)
         for ray in range(CASTED_RAYS):
             sin_a = math.sin(start_angle)
@@ -141,6 +186,10 @@ class Map:
                 if tile_v in self.world_map.keys():
                     texture_v = textures[
                         self.world_map[tile_v]]
+                    if self.world_map[tile_v] == 'door' and fourKeys != True:
+                        texture_v = texture_v[0]
+                    elif self.world_map[tile_v] == 'door' and fourKeys == True:
+                        texture_v = texture_v[1]
                     break
                 x += dx * TILE
 
@@ -152,31 +201,43 @@ class Map:
                 if tile_h in self.world_map.keys():
                     texture_h = textures[
                         self.world_map[tile_h]]
+                    if self.world_map[tile_h] == 'door' and fourKeys != True:
+                        texture_h = texture_h[0]
+                    elif self.world_map[tile_h] == 'door' and fourKeys == True:
+                        texture_h = texture_h[1]
                     break
                 y += dy * TILE
 
             depth, offset, texture = (
                 depth_v, yv, texture_v) if depth_v < depth_h else (depth_h, xh, texture_h)
             offset = int(offset) % TILE
-            depth *= math.cos(player_angle - start_angle)
+            depth *= math.cos(player.angle - start_angle)
             depth = max(depth, 0.00001)
             proj_height = min(int(PROJ_COEFF / depth), 2 * HEIGHT)
             wall_column = texture.subsurface(
                 offset * TEXTURE_SCALE, 0, TEXTURE_SCALE, TEXTURE_HEIGHT)
             wall_column = pygame.transform.scale(
                 wall_column, (SCALE, proj_height))
-            self.screen.blit(
-                wall_column, (ray * SCALE, HEIGHT // 2 - proj_height // 2))
+            wall_pos = (ray * SCALE, HEIGHT // 2 - proj_height // 2)
+
+            walls.append((depth, wall_column, wall_pos))
             start_angle += STEP_ANGLE
 
-    def world(self):
+        return walls
+
+    def world(self, world_objects):
         pygame.draw.rect(self.screen, (55, 55, 55),
                          (0, HEIGHT / 2, WIDTH, HEIGHT))
         pygame.draw.rect(self.screen, (55, 55, 55),
                          (0, -HEIGHT / 2, WIDTH, HEIGHT))
+        pygame.draw.rect(self.screen, (30, 30, 30),
+                         (1200, 320, 240, HEIGHT - 320))
+        for obj in sorted(world_objects, key=lambda n: n[0], reverse=True):
+            if obj[0]:
+                _, object, object_pos = obj
+                self.screen.blit(object, object_pos)
 
     def draw_inventory(self):
-        pygame.draw.rect(self.screen, (30, 30, 30), (1200, 0, 240, HEIGHT))
         pygame.draw.line(self.screen, (100, 100, 100),
                          (1200, 220), (1440, 220), 5)
         pygame.draw.line(self.screen, (100, 100, 100),

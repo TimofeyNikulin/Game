@@ -26,6 +26,10 @@ SCALE = WIDTH / CASTED_RAYS
 DIST = CASTED_RAYS / (2 * math.tan(HALF_FOV))
 PROJ_COEFF = 3 * DIST * TILE
 
+# sprite settings
+DOUBLE_PI = math.pi * 2
+CENTER_RAY = CASTED_RAYS // 2 - 1
+
 # Minimap
 MAP_SCALE = 5
 MAP_TILE = TILE // MAP_SCALE

@@ -9,7 +9,7 @@ def terminate():
 
 
 def start_screen(screen, clock):
-    intro_text = ["Лабиринт"]
+    intro_text = ["Лабиринт", "Задача:", "Найти 4 ключа и открыть дверь"]
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
