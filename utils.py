@@ -2,6 +2,19 @@ from levels import LEVELS
 from config import *
 import pygame
 import math
+from endPage import end_screen
+
+
+def reload(screen, map, field, fourKeys):
+    sprites = Sprites()
+    player = Player(screen=screen, sprites=sprites,
+                    amount_keys=0)
+    field = Field()
+    map = Map(screen)
+    map.draw_inventory()
+    fourKeys = False
+    player.map = map
+    player.field = field
 
 
 class Sprites:
@@ -17,6 +30,9 @@ class Sprites:
             SpriteObject(self.sprite_types['key'], True, (7.5, 6.5), 1.8, 0.4)
         ]
 
+    def reload(self):
+        self.__init__()
+
 
 class SpriteObject:
     def __init__(self, object, static, pos, shift, scale):
@@ -25,6 +41,8 @@ class SpriteObject:
         self.pos = self.x, self.y = pos[0] * TILE, pos[1] * TILE
         self.shift = shift
         self.scale = scale
+        self.side = 30
+        self.pos = self.x - self.side // 2, self.y - self.side // 2
 
     def object_locate(self, player, walls):
         dx, dy = self.x - player.x, self.y - player.y
@@ -52,6 +70,9 @@ class SpriteObject:
         else:
             return (False, )
 
+    def reload(self):
+        self.__init__()
+
 
 class Field:
     def __init__(self):
@@ -59,13 +80,16 @@ class Field:
         self.numberLevel = 0
         self.objectsOnLevel = []
         self.world_map = set()
-        for j, row in enumerate(LEVELS[0]):
+        for j, row in enumerate(LEVELS[number_of_level]):
             for i, char in enumerate(row):
                 if char == '1' or char == '2' or char == 'D':
                     self.world_map.add((i * MAP_TILE, j * MAP_TILE))
 
     def nextLevel(self):
         self.numberLevel += 1
+
+    def reload(self):
+        self.__init__()
 
     def draw(self, screen, screen_map, player_pos, player_angle):
         screen_map.fill((0, 0, 0))
@@ -81,32 +105,84 @@ class Field:
 
 
 class Player:
-    def __init__(self, x=WIDTH / 2, y=HEIGHT / 2):
-        self.x = x
-        self.y = y
-        self.pos = (self.x, self.y)
+    def __init__(self, screen, sprites, amount_keys, clock, x=WIDTH / 2, y=HEIGHT / 2):
+        self.sprites = sprites
+        self.sprites_for_reload = sprites
+        self.amount_keys = amount_keys
+        self.pos = self.x, self.y = x, y
+        self.clock = clock
         self.angle = 0
         self.player_speed = SPEED
         self.collision_walls = []
         self.side = 20
+        self.screen = screen
         self.rect = pygame.Rect(*self.pos, self.side, self.side)
-        for j, row in enumerate(LEVELS[0]):
+        self.collision_sprites = [pygame.Rect(
+            *obj.pos, obj.side, obj.side) for obj in self.sprites.list_of_objects if obj.static]
+        self.door = 0
+        self.map = ''
+        self.field = ''
+        self.spriteObject = ''
+        for j, row in enumerate(LEVELS[number_of_level]):
             for i, char in enumerate(row):
                 if char != ' ':
+                    if char == 'D':
+                        self.door = len(self.collision_walls)
                     self.collision_walls.append(
                         pygame.Rect(i * TILE, j * TILE, TILE, TILE))
+        self.collision_list = self.collision_walls + self.collision_sprites
 
     def updatePos(self):
         self.pos = (self.x, self.y)
 
+    def reload(self):
+        self.__init__(screen=self.screen, sprites=self.sprites,
+                      amount_keys=4, clock=self.clock)
+
+    def addKey(self):
+        key_pos_list = [(1206, 126), (1324, 126), (1206, 225), (1324, 225)]
+        self.amount_keys -= 1
+        pos = key_pos_list[self.amount_keys]
+        pygame.draw.rect(self.screen, 'yellow',
+                         (pos[0], pos[1], 110, 90))
+
     def detect_collision(self, dx, dy):
+        global number_of_level
         next_rect = self.rect.copy()
         next_rect.move_ip(dx, dy)
-        hit_indexes = next_rect.collidelistall(self.collision_walls)
+        hit_indexes = next_rect.collidelistall(self.collision_list)
         if len(hit_indexes):
             delta_x, delta_y = 0, 0
             for hit_index in hit_indexes:
-                hit_rect = self.collision_walls[hit_index]
+                if self.collision_list[hit_index] in self.collision_list[-4:]:
+                    object = self.collision_list[hit_index]
+                    for obj in self.sprites.list_of_objects:
+                        print(obj.pos, (object.left, object.top))
+                        if obj.pos == (object.left, object.top):
+                            self.sprites.list_of_objects.pop(
+                                self.sprites.list_of_objects.index(obj))
+                            self.collision_list.pop(hit_index)
+                            self.addKey()
+                    continue
+                if hit_index == self.door and self.amount_keys == 0:
+                    number_of_level += 1
+                    if number_of_level == 3:
+                        end_screen(self.screen, self.clock)
+                    self.map.reload()
+                    self.field.reload()
+                    self.sprites.reload()
+                    map = self.map
+                    field = self.field
+                    sprites = self.spriteObject
+                    pygame.draw.rect(self.screen, (0, 0, 0),
+                                     (1200, 120, 240, 201))
+                    map.draw_inventory()
+                    self.reload()
+                    self.field = field
+                    self.map = map
+                    self.spriteObject = sprites
+
+                hit_rect = self.collision_list[hit_index]
                 if dx > 0:
                     delta_x += next_rect.right - hit_rect.left
                 else:
@@ -158,7 +234,7 @@ class Map:
     def __init__(self, screen):
         self.screen = screen
         self.world_map = {}
-        for j, row in enumerate(LEVELS[0]):
+        for j, row in enumerate(LEVELS[number_of_level]):
             for i, char in enumerate(row):
                 if char == '1':
                     self.world_map[(i * TILE, j * TILE)] = '1'
@@ -169,6 +245,9 @@ class Map:
 
     def coordOfSquare(self, x, y):
         return (x // TILE) * TILE, (y // TILE) * TILE
+
+    def reload(self):
+        self.__init__(self.screen)
 
     def ray_casting(self, player, textures, fourKeys):
         walls = []

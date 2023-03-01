@@ -17,12 +17,17 @@ if __name__ == '__main__':
     screen_map = pygame.Surface(
         (WIDTH // MAP_SCALE, HEIGHT // MAP_SCALE - 40))
     running = True
-    player = Player()
+    sprites = Sprites()
+    player = Player(screen=screen, sprites=sprites,
+                    amount_keys=len(sprites.list_of_objects), clock=clock)
     field = Field()
     map = Map(screen)
-    sprites = Sprites()
     map.draw_inventory()
     fourKeys = False
+    player.map = map
+    player.field = field
+    player.spriteObject = sprites
+    print(player.map, player.field)
     while running:
         player.movement()
         for event in pygame.event.get():
@@ -32,6 +37,10 @@ if __name__ == '__main__':
         map.world(walls + [obj.object_locate(player, walls)
                   for obj in sprites.list_of_objects])
         field.draw(screen, screen_map, player.pos, player.angle)
+        if player.amount_keys == 0:
+            fourKeys = True
+        else:
+            fourKeys = False
         clock.tick(FPS)
         print(clock.get_fps())
 

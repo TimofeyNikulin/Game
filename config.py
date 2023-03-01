@@ -7,6 +7,7 @@ WIDTH = 1200
 MAP_SIZE = 8
 TILE = int(WIDTH / 10 / 2)
 FPS = 80
+number_of_level = 0
 
 # player
 SPEED = 3
